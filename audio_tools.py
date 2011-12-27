@@ -357,3 +357,48 @@ def critical_bands(Fs, N, transform='dft'):
   return cb[:i]
 
 
+# implement a time-domain circular convolution
+# this is not the efficient way to compute it but is sometimes nevertheless usefull
+def circconv_td(x, y):
+
+  N = len(x)
+  M = len(y)
+
+  if (N > M):
+    L = x
+    S = y
+  else:
+    L = y
+    S = x
+
+  convmtx = sp.linalg.toeplitz(L, np.hstack((L[0], L[-1:-M:-1])))
+
+  return np.dot(convmtx, S)
+
+
+## Return the DFT to DCT transform matrix
+def spectral_dct_mtx(N):
+
+  D2C = np.zeros((N,N), dtype=complex)
+
+  # DC component
+  D2C[0,0] = 2*N
+
+  # l even, right part
+  k = np.arange(N/2+1,N)
+  l = 2*(N-k)
+  D2C[l,k] = N*np.exp(1j*np.pi*l/2./N)
+
+  # l even, left part
+  k = np.arange(1, N/2)
+  l = 2*k
+  D2C[l,k] = N*np.exp(-1j*np.pi*l/2./N)
+
+  # l odd
+  K, L = np.meshgrid(np.arange(N), np.arange(1,N,2))
+  D2C[1::2,:] = 2*np.exp(1j*np.pi*L/2./N)/(1. - np.exp(1j*np.pi*(2*K+L)/N)) \
+              + 2*np.exp(-1j*np.pi*L/2./N)/(1. - np.exp(1j*np.pi*(2*K-L)/N))
+
+  return D2C
+
+
