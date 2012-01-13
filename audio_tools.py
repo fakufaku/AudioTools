@@ -33,7 +33,7 @@ def dB(X,floor=None):
 
  
 # DCT-II of 1D signal (type 2) [equivalent to scipy.fftpack.dct]
-def dct(din):
+def dctII(din):
   # dct size
   N = len(din)
   # create output array
@@ -48,9 +48,9 @@ def dct(din):
   return 2*np.real(W * np.fft.fft(dout))
 
     
-# iDCT-II of 1D signal (type 2) [equivalent to scipy.fftpack.idct divided by 2N]
-def idct(din):
-  # idct size
+# DCT-III of 1D signal (type 2) [equivalent to scipy.fftpack.idct divided by 2N]
+def dctIII(din):
+  # dct-III size
   N = len(din)
   # create output array
   temp = np.zeros(din.shape, dtype=complex)
@@ -67,19 +67,141 @@ def idct(din):
   for i in range(0,N/2):
     dout[2*i] = temp[i]
     dout[2*i+1] = temp[-i-1] 
-  # return iDCT
+  # return DCT-III
   return dout
 
+# DST-III of 1D signal (type 3) [see Shao and Johnson, Type-IV DCT, DST and MDCT algorithms with reduced numbers of arithmetic operations, 2009]
+def dstIII(x):
+  # size and output array
+  N = len(x)
+  X = np.zeros(N)
+  # reverse array
+  X[0] = x[0]
+  X[1:] = x[-1:0:-1]
+  # perform DCT-III
+  X = dctIII(X)
+  # invert sign of odd indices
+  X[1::2] *= -1
+  # return DST-III
+  return X
 
-# the input mapping for the DCT-II
-def dct_II_mapping(d):
-  N = len(d)
-  # first reverse odd numbers
-  for i in range(1,N/2,2):
-    d[i], d[N-i] = d[N-i], d[i]
-  # then exchange odd and even elements
-  for i in range(1,N/2,2):
-    d[i], d[i+N/2-1] = d[i+N/2-1], d[i]
+
+# DCT-IV of 1D signal (type 4) [see Z. Wang, On Computing the Discrete Fourier and Cosine Transforms, 1985]
+def dctIV(x):
+  # size and output array
+  N = len(x)
+  X = np.zeros(N)
+  # Multiplication by matrix Bn from paper, combined with reordering from Pn, permutation matrix
+  X[0] = x[0] # factor sqrt(2) cancelled by later DCT-III
+  for n in range(1,N-1,2):
+    X[N-1-(n-1)/2] = x[n] - x[n+1]    # odd indices
+    X[(n+1)/2] = x[n] + x[n+1]        # even indices
+  X[N/2] = x[N-1] # factor sqrt(2) cancelled by later DST-III
+  # Half-length DCT-III
+  X[0] *= 2     # to conform to our definition of DCT-III
+  X[0:N/2] = dctIII(X[0:N/2])
+  # Half-length DST-III of reversed data, in reversed order
+  X[N/2] *= 2   # to conform to our definition of DST-III
+  X[N/2+1:] = X[-1:N/2:-1]
+  X[N-1:N/2-1:-1] = dstIII(X[N/2:])
+  # Multiplication by Tn from paper (Rotation matrix)
+  for n in range(0,N/2):
+    c = np.cos((2*n+1)*np.pi/4./N)
+    s = np.sin((2*n+1)*np.pi/4./N)
+    X[[n, N-1-n]]  = np.dot(np.array([[c,s],[s,-c]]), X[[n,N-1-n]])
+  # Scaling was adjusted compared to paper so that dctIV is orthonormal (its own inverse)
+  X *= np.sqrt(N)/np.sqrt(2)
+  # return DCT-IV
+  return X
+
+
+# DCT-II of 1D signal (type 2) [equivalent to scipy.fftpack.dct]
+def dct(din):
+  return dctII(din)
+
+
+# iDCT-II (<=> DCT-III) of 1D signal (type 2) [equivalent to scipy.fftpack.idct divided by 2N]
+def idct(din):
+  return dctIII(din)
+
+
+# Modified Discrete Cosine Transform
+# see ref: Shao and Johnson, Type-IV DCT, DST, and MDCT algo..., 2009
+# uses DCT-IV to compute MDCT
+# takes as input 2N array, outputs N array
+def mdct(x):
+  N = len(x)/2 # output is half length
+
+  # create array
+  X = np.zeros(N)
+
+  # fill the array according to Shao and Johnson
+  for n in range(N/2):
+    X[n] = -x[3*N/2-1-n] - x[3*N/2+n]
+  for n in range(N/2,N):
+    X[n] = x[n-N/2] - x[3*N/2-1-n]
+
+  # take the DCT-IV of this array
+  X = dctIV(X)
+  
+  # return MDCT
+  return X
+
+
+# inverse Modified Discrete Cosine Transform
+# see ref: Shao and Johnson, Type-IV DCT, DST, and MDCT algo..., 2009
+# uses DCT-IV to compute iMDCT
+# takes N array as input, outputs 2N array
+def imdct(x):
+  N = len(x)
+
+  # create array
+  X = np.zeros(2*N)
+
+  # take DCT-IV
+  X[0:N] = dctIV(x)
+
+  # we know DCT-IV output is mirror antisymmetric
+  X[N:] = -X[N-1::-1]
+
+  # shift by N/2
+  T = X[0:N/2]
+  X[0:3*N/2] = X[N/2:]
+  X[3*N/2:] = -T
+
+  # return iMDCT
+  return X
+
+
+# Discrete Hartley transform
+def dht(din):
+  # dht size
+  N = len(din)
+  # create output array
+  H = np.zeros(N)
+  # Fourier transform
+  F = np.fft.fft(din)
+  # mapping to DHT
+  for k in range(N):
+    H[k] = np.real(F[k]) - np.imag(F[k])
+  # return DHT
+  return H
+
+
+# inverse Discrete Hartley transform
+def idht(din):
+  # dht size
+  N = len(din)
+  # create output array
+  F = np.zeros(N,dtype=complex)
+  # mapping to DFT
+  F[0] = din[0]
+  for k in range(1,N):
+    F[k] = 0.5*(din[k] + din[N-k]) - 1j*(din[k] - din[N-k])
+  # inverse Fourier transform
+  F = np.fft.ifft(F)
+  # return iDFT
+  return np.real(F)
 
 
 # cosine window function
@@ -153,6 +275,10 @@ def rect(N):
 # DCT spectrogram
 def spectrogram(x, N, L, D, transform=np.fft.fft, win=hann):
 
+  if ((L != D) and transform == mdct):
+    print "Frame size and overlap must be equal for MDCT"
+    sys.exit(-1)
+
   # pad if necessary
   if (len(x)%L != 0):
     x = np.hstack((x, np.zeros(L-(len(x)%L))))
@@ -162,7 +288,10 @@ def spectrogram(x, N, L, D, transform=np.fft.fft, win=hann):
 
   # compute left and right windows
   if (D != 0):
-    W = win(2*D)
+    if (transform == mdct):
+      W = win(2*D, flag='symmetric')
+    else:
+      W = win(2*D)
     winL = np.tile(W[0:D], (F, 1)).T  # type DxF
     winR = np.tile(W[D:], (F, 1)).T   # type DxF
 
@@ -186,7 +315,9 @@ def spectrogram(x, N, L, D, transform=np.fft.fft, win=hann):
 
   if (transform == np.fft.fft):
     Z = np.zeros(Y.shape, dtype=complex)
-  elif (transform == dct):
+  elif (transform == mdct):
+    Z = np.zeros((N/2, F), dtype=float)
+  else:
     Z = np.zeros(Y.shape, dtype=float)
 
   # compute DCT
@@ -199,16 +330,25 @@ def spectrogram(x, N, L, D, transform=np.fft.fft, win=hann):
 # inverse spectrogram
 def margortceps(Y, L, D, transform=np.fft.ifft, win=hann):
 
+  if ((L != D) and transform == mdct):
+    print "Frame size and overlap must be equal for MDCT"
+    sys.exit(-1)
+
   N,F = Y.shape
 
   if (transform == np.fft.ifft):
     Z = np.zeros(Y.shape, dtype=complex)
-  elif (transform == idct):
+  elif (transform == imdct):
+    Z = np.zeros((Y.shape[0]*2,Y.shape[1]), dtype=float)
+  else:
     Z = np.zeros(Y.shape, dtype=float)
 
   # compute left and right windows
   if (D != 0):
-    W = win(2*D)
+    if (transform == mdct):
+      W = win(2*D, flag='symmetric')
+    else:
+      W = win(2*D)
     winL = np.tile(W[0:D], (F, 1)).T  # type DxF
     winR = np.tile(W[D:], (F, 1)).T   # type DxF
 
@@ -396,8 +536,7 @@ def spectral_dct_mtx(N):
 
   # l odd
   K, L = np.meshgrid(np.arange(N), np.arange(1,N,2))
-  D2C[1::2,:] = 2*np.exp(1j*np.pi*L/2./N)/(1. - np.exp(1j*np.pi*(2*K+L)/N)) \
-              + 2*np.exp(-1j*np.pi*L/2./N)/(1. - np.exp(1j*np.pi*(2*K-L)/N))
+  D2C[1::2,:] = 1j*np.exp(-1j*np.pi*K/N)*(1/np.sin(np.pi*(K+L/2.)/N) + 1/np.sin(np.pi*(K-L/2.)/N))
 
   return D2C
 
