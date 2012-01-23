@@ -27,9 +27,9 @@ def write_raw_pcm_16bits(filename, data):
 # convert X to decibels
 def dB(X,floor=None):
   if (floor != None):
-    return 10.*np.log10(np.maximum(floor, X))
+    return 10.*np.log10(np.maximum(floor, np.abs(X)))
   else:
-    return 10.*np.log10(X)
+    return 10.*np.log10(np.abs(X))
 
  
 # DCT-II of 1D signal (type 2) [equivalent to scipy.fftpack.dct]
@@ -110,7 +110,7 @@ def dctIV(x):
     s = np.sin((2*n+1)*np.pi/4./N)
     X[[n, N-1-n]]  = np.dot(np.array([[c,s],[s,-c]]), X[[n,N-1-n]])
   # Scaling was adjusted compared to paper so that dctIV is orthonormal (its own inverse)
-  X *= np.sqrt(N)/np.sqrt(2)
+  X *= np.sqrt(N/2.)
   # return DCT-IV
   return X
 
@@ -152,25 +152,23 @@ def mdct(x):
 # see ref: Shao and Johnson, Type-IV DCT, DST, and MDCT algo..., 2009
 # uses DCT-IV to compute iMDCT
 # takes N array as input, outputs 2N array
-def imdct(x):
-  N = len(x)
+def imdct(X):
+  N = len(X)
 
   # create array
-  X = np.zeros(2*N)
+  x = np.zeros(2*N)
 
   # take DCT-IV
-  X[0:N] = dctIV(x)
+  x[:N] = dctIV(X)
 
-  # we know DCT-IV output is mirror antisymmetric
-  X[N:] = -X[N-1::-1]
-
-  # shift by N/2
-  T = X[0:N/2]
-  X[0:3*N/2] = X[N/2:]
-  X[3*N/2:] = -T
+  # we know DCT-IV output is mirror antisymmetric, the iMDCT is shifted by N/2
+  x[N:3*N/2] = -x[N/2-1::-1]
+  x[3*N/2:] = -x[:N/2]
+  x[:N/2] = x[N/2:N]
+  x[N/2:N] = -x[N/2-1::-1]
 
   # return iMDCT
-  return X
+  return x
 
 
 # Discrete Hartley transform
@@ -216,13 +214,23 @@ def cosine(N, flag='asymmetric', length='full'):
     t = np.arange(0,N)
 
   # if asymmetric window, denominator is N, if symmetric it is N-1
-  if (flag == 'symmetric'):
+  if (flag == 'symmetric' or flag == 'mdct'):
     t = t/float(N-1)
   else:
     t = t/float(N)
 
+  w = np.cos(np.pi*(t - 0.5))**2
+
+  # make the window respect MDCT condition
+  if (flag == 'mdct'):
+    w **= 2
+    d = w[:N/2]+w[N/2:]
+    w[:N/2] *= 1./d
+    w[N/2:] *= 1./d
+    w = np.sqrt(w)
+
   # compute window
-  return np.cos(np.pi*(t - 0.5))
+  return w
 
 
 # root triangular window function
@@ -237,13 +245,23 @@ def triang(N, flag='asymmetric', length='full'):
     t = np.arange(0,N)
 
   # if asymmetric window, denominator is N, if symmetric it is N-1
-  if (flag == 'symmetric'):
+  if (flag == 'symmetric' or flag == 'mdct'):
     t = t/float(N-1)
   else:
     t = t/float(N)
 
+  w = 1. - np.abs(2.*t - 1.)
+
+  # make the window respect MDCT condition
+  if (flag == 'mdct'):
+    d = w[:N/2]+w[N/2:]
+    w[:N/2] *= 1./d
+    w[N/2:] *= 1./d
+
+  w = np.sqrt(w)
+
   # compute window
-  return np.sqrt(1. - np.abs(2.*t - 1.))
+  return w
 
 
 # root hann window function
@@ -258,13 +276,24 @@ def hann(N, flag='asymmetric', length='full'):
     t = np.arange(0,N)
 
   # if asymmetric window, denominator is N, if symmetric it is N-1
-  if (flag == 'symmetric'):
+  if (flag == 'symmetric' or flag == 'mdct'):
     t = t/float(N-1)
   else:
     t = t/float(N)
 
+  w = 0.5*(1-np.cos(2*np.pi*t))
+
+  # make the window respect MDCT condition
+  if (flag == 'mdct'):
+    d = w[:N/2]+w[N/2:]
+    w[:N/2] *= 1./d
+    w[N/2:] *= 1./d
+
+  # take square root for perfect reconstruction
+  w = np.sqrt(w)
+
   # compute window
-  return np.sqrt(0.5*(1-np.cos(2*np.pi*t)))
+  return w
 
 
 # Rectangular window function
@@ -289,14 +318,15 @@ def spectrogram(x, N, L, D, transform=np.fft.fft, win=hann):
   # compute left and right windows
   if (D != 0):
     if (transform == mdct):
-      W = win(2*D, flag='symmetric')
+      W = win(2*D, flag='mdct')
     else:
       W = win(2*D)
     winL = np.tile(W[0:D], (F, 1)).T  # type DxF
     winR = np.tile(W[D:], (F, 1)).T   # type DxF
 
   # frames, matrix type LxF
-  X = x.reshape(F, L).T.copy()
+  X = np.zeros((L,F), dtype=float)
+  X = x.reshape(F, L).T.copy()*1.
 
   if (D != 0):
     # overlap, matrix type DxF , multiply by left window function
@@ -345,8 +375,8 @@ def margortceps(Y, L, D, transform=np.fft.ifft, win=hann):
 
   # compute left and right windows
   if (D != 0):
-    if (transform == mdct):
-      W = win(2*D, flag='symmetric')
+    if (transform == imdct):
+      W = win(2*D, flag='mdct')
     else:
       W = win(2*D)
     winL = np.tile(W[0:D], (F, 1)).T  # type DxF
@@ -539,5 +569,25 @@ def spectral_dct_mtx(N):
   D2C[1::2,:] = 1j*np.exp(-1j*np.pi*K/N)*(1/np.sin(np.pi*(K+L/2.)/N) + 1/np.sin(np.pi*(K-L/2.)/N))
 
   return D2C
+
+
+## A Naive Gram-Schmidt algo, for when I want to know what is happening
+# makes the columns of the input matrix orthonormal to each other
+def gram_schmidt(A):
+
+  E = A.copy()
+
+  E[:,0] /= np.sqrt(np.inner(A[:,0], A[:,0]))
+
+  for j in range(1, A.shape[1]):
+
+    E[:,j] = A[:,j]
+    for k in range(1,j+1):
+      p = np.inner(E[:,j-k], A[:,j])
+      E[:,j] -= p*E[:,j-k]
+
+    E[:,j] /= np.sqrt(np.inner(A[:,j], A[:,j]))
+
+  return E
 
 
