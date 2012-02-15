@@ -446,8 +446,54 @@ def auto_regressive_spectrum(x, M, f):
   return e/np.abs((A*np.exp(-2.j*np.pi*I)).sum(axis=0))**2
 
 
+# AR spectrogram estimate
+def ar_spectrogram(x, L, D, M, f):
+
+  # pad if necessary
+  if (len(x)%L != 0):
+    x = np.hstack((x, np.zeros(L-(len(x)%L))))
+
+  # compute number of frames
+  F = len(x)/L
+
+  # frames, matrix type LxF
+  X = np.zeros((L,F), dtype=float)
+  X = x.reshape(F, L).T.copy()*1.
+
+  if (D != 0):
+    # overlap, matrix type DxF , multiply by left window function
+    O = np.hstack((np.zeros((D,1)), X[-D:,0:-1]))*winL
+    # multiply frames by right window function
+    X[-D:,:] *= winR
+
+  # stack frames, overlap and zero-padding: matrix type NxF
+  if (D != 0):
+    Y = np.vstack((O, X, ZP))
+  else:
+    Y = np.vstack((X, ZP))
+
+  Z = np.zeros((len(f), Y.shape[1]), dtype=float)
+  AR = np.zeros((M+1, Y.shape[1]), dtype=float)
+  E = np.zeros(Y.shape[1], dtype=float)
+
+  # compute DCT
+  for i in range(0,F):
+    AR[:,i], E[i] = yule_walker(x, M)
+
+    N = len(f)
+
+    I = np.outer(np.arange(0,M+1), f)
+    A = np.tile(AR[:,i], (N, 1)).T
+
+    Z[:,i] =  E[i]/np.abs((A*np.exp(-2.j*np.pi*I)).sum(axis=0))**2
+
+  return Z, AR, E
+
+
+# Simple mean squared error function
 def mse(x1, x2):
   return (np.abs(x1-x2)**2).sum()/len(x1)
+
 
 # Itakura-Saito distance function
 def itakura_saito(X1,X2):
