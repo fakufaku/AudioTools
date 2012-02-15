@@ -165,15 +165,13 @@ def ar_spectrogram(x, L, D, M, f):
 
   if (D != 0):
     # overlap, matrix type DxF , multiply by left window function
-    O = np.hstack((np.zeros((D,1)), X[-D:,0:-1]))*winL
-    # multiply frames by right window function
-    X[-D:,:] *= winR
+    O = np.hstack((np.zeros((D,1)), X[-D:,0:-1]))
 
   # stack frames, overlap and zero-padding: matrix type NxF
   if (D != 0):
-    Y = np.vstack((O, X, ZP))
+    Y = np.vstack((O, X))
   else:
-    Y = np.vstack((X, ZP))
+    Y = X
 
   Z = np.zeros((len(f), Y.shape[1]), dtype=float)
   AR = np.zeros((M+1, Y.shape[1]), dtype=float)

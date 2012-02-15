@@ -1,5 +1,7 @@
 '''Read and write PCM 16 bits files.'''
 
+import numpy as np
+
 # open raw PCM audio file, return float array
 def read_raw_pcm_16bits(filename):
   fd = open(filename, 'rb')
