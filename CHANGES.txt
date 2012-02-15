@@ -1,1 +1,3 @@
+v0.3.0, 2012 -- Load directly functions in __init__
+v0.2.0, 2012 -- Moved functions into separate files.
 v0.1.0, 2012 -- Initial release.

@@ -2,7 +2,7 @@ from distutils.core import setup
 
 setup(
     name='AudioTools',
-    version='0.1.0',
+    version='0.3.0',
     author='Robin Scheibler',
     author_email='r-scheibler@zf.jp.nec.com',
     packages=['audiotools'],
