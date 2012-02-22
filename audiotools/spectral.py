@@ -122,7 +122,6 @@ def autocorr(X):
 # If X is a matrix, the algorithm operates on the columns of the matrix
 def yule_walker(X, M):
 
-
   N = X.shape[0]
   if (len(X.shape) > 1):
     F = X.shape[1]
