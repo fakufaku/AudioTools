@@ -131,7 +131,7 @@ def yule_walker(X, M):
   A = np.zeros(M+1)
   E = 0
 
-  # fft based columnwise correlation
+  # FFT based columnwise correlation
   R = autocorr(X)
 
   if (F == 1):
