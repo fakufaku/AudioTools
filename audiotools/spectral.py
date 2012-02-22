@@ -104,6 +104,20 @@ def margortceps(Y, L, D, transform=np.fft.ifft, win=hann):
   return X.T.reshape(L*F)
 
 
+# Compute singe-sided autocorrelation of a sequence using FFT method
+# This is the >biased< estimate of the ACF and only returns the positive
+# part of the ACF: R(n), n >= 0
+def autocorr(X):
+
+  N = X.shape[0]
+
+  # fft based columnwise correlation
+  R = np.zeros((N,1))
+  R = np.real(np.fft.ifft(np.abs(np.fft.fft(X,n=2*N-1,axis=0))**2,n=None,axis=0))[:N,]/N
+
+  return R
+
+
 # Solves the Yule-Walker equations and returns the linear prediction coefficients using Levinson-Durbin algorithm
 # If X is a matrix, the algorithm operates on the columns of the matrix
 def yule_walker(X, M):
@@ -118,8 +132,7 @@ def yule_walker(X, M):
   E = 0
 
   # fft based columnwise correlation
-  R = np.zeros((N,1))
-  R = np.real(np.fft.ifft(np.abs(np.fft.fft(X,n=2*N-1,axis=0))**2,n=None,axis=0))[:N,]/N
+  R = autocorr(X)
 
   if (F == 1):
     a = np.zeros(M)
