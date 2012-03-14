@@ -35,8 +35,8 @@ def critical_bands(Fs, N, transform='dft'):
     i += 1
 
   # add the last boundary (transform size)
-  if (cb[i-1] != N):
-    cb[i] = N
+  if (cb[i-1] != N/2):
+    cb[i] = N/2
     i += 1
 
   # remove duplicate, if any, (typically, if N is small and Fs is large)
