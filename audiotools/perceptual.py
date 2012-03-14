@@ -25,7 +25,7 @@ def critical_bands(Fs, N, transform='dft'):
 
   F = len(fb)
 
-  cb = np.zeros(N)
+  cb = np.zeros(N, dtype=int)
 
   # convert frequency boundaries into bins
   cb[0] = int(fb[0]/B)   # this is usually == 0
