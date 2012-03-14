@@ -45,6 +45,7 @@ def critical_bands(Fs, N, transform='dft'):
     if (cb[j] == cb[j+1]):
       cb[j:i-1] = cb[j+1:i]
       i -= 1
+    j += 1
 
 
   return cb[:i]
