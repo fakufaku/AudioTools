@@ -1,5 +1,7 @@
 '''Methods related to perception of speech.'''
 
+import numpy as np
+
 # Compute the Critical bands as defined in the book:
 # Psychoacoustics by Zwicker and Fastl. Table 6.1 p. 159
 # with respect to a given sampling frequency Fs and a transform size N
