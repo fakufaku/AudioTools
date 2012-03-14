@@ -25,10 +25,25 @@ def critical_bands(Fs, N, transform='dft'):
 
   cb = np.zeros(N)
 
-  i = 0;
+  # convert frequency boundaries into bins
+  cb[0] = int(fb[0]/B)   # this is usually == 0
+  i = 1;
   while (fb[i+1] < min(Fs/2, fb[-1])):
     cb[i] = int(np.around(fb[i]/B))
     i += 1
+
+  # add the last boundary (transform size)
+  if (cb[i-1] != N):
+    cb[i] = N
+    i += 1
+
+  # remove duplicate, if any, (typically, if N is small and Fs is large)
+  j = 0
+  while (j < i):
+    if (cb[j] == cb[j+1]):
+      cb[j:i-1] = cb[j+1:i]
+      i -= 1
+
 
   return cb[:i]
 

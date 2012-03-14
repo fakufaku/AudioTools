@@ -217,7 +217,7 @@ def autoregressive_spectrogram(x, L, D, M, f, window=hann):
   # compute Yule-Walker coefficients (on columns)
   AR, E = yule_walker(W*Y, M)
 
-  # compute DCT
+  # compute spectrum
   for i in range(0,F):
     N = len(f)
     A = np.tile(AR[:,i], (N, 1)).T
