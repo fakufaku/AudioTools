@@ -227,7 +227,7 @@ def autoregressive_spectrogram(x, L, D, M, f, window=hann):
 
 
 # Compute Cepstrum
-def autocorr(X):
+def cepstrum(X):
 
   N = X.shape[0]
 
