@@ -233,6 +233,6 @@ def cepstrum(X):
 
   # fft based columnwise cepstrum computation
   R = np.zeros((N,1))
-  R = np.abs(np.real(np.fft.ifft(np.log10(np.abs(np.fft.fft(X,n=2*N-1,axis=0))**2),n=None,axis=0)))[:N,]**2/N
+  R = np.abs(np.real(np.fft.fft(np.log10(np.abs(np.fft.fft(X,n=2*N-1,axis=0))**2),n=None,axis=0)))[:N,]**2/N
 
   return R
