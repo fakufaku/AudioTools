@@ -17,3 +17,4 @@ from perceptual import *
 from spectral import *
 from windows import *
 from transforms import *
+from learning import *
